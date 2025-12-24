@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Windy 경로 → WPT 변환기 made by nillili</title>
+  <style>
+    :root {
+      --primary-color: #00aaff;
+      --bg-color: #f4f7f6;
+      --card-bg: #ffffff;
+    }
+    body { 
+      font-family: 'Pretendard', system-ui, -apple-system, sans-serif; 
+      margin: 0; 
+      padding: 20px; 
+      background-color: var(--bg-color);
+      color: #333;
+    }
+    .container { 
+      max-width: 800px; 
+      margin: 0 auto; 
+      background: var(--card-bg);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 20px; color: #1a1a1a; display: flex; align-items: center; gap: 10px; }
+    label { display:block; font-weight: 600; margin: 20px 0 8px; font-size: 0.9rem; }
+    textarea, input { 
+      width: 100%; 
+      box-sizing: border-box; 
+      padding: 15px; 
+      border: 2px solid #eee; 
+      border-radius: 12px; 
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    textarea:focus, input:focus { outline: none; border-color: var(--primary-color); }
+    textarea { min-height: 120px; resize: vertical; font-family: monospace; }
+    
+    .button-group { margin-top: 25px; }
+    button { 
+      width: 100%;
+      padding: 15px; 
+      border: 0; 
+      border-radius: 12px; 
+      cursor: pointer; 
+      font-weight: 700; 
+      font-size: 1rem;
+      background: var(--primary-color);
+      color: white;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    button:active { transform: scale(0.98); }
+    button:hover { opacity: 0.9; }
+
+    .hint { 
+      background: #eef9ff; 
+      padding: 15px; 
+      border-radius: 12px; 
+      font-size: 0.85rem; 
+      color: #446688; 
+      line-height: 1.6;
+    }
+    .hint a {
+      color: var(--primary-color);
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .hint a:hover {
+      text-decoration: underline;
+    }
+    .out { 
+      margin-top: 25px; 
+      padding: 20px; 
+      border: 2px dashed #ddd; 
+      border-radius: 15px; 
+      background: #fafafa; 
+    }
+    #status { font-weight: 600; margin-bottom: 10px; }
+    .error { color: #d32f2f; }
+    .ok { color: #2e7d32; }
+    
+    #preview { 
+      white-space: pre; 
+      overflow: auto; 
+      max-height: 200px; 
+      font-size: 0.85rem; 
+      background: #eee; 
+      padding: 10px; 
+      border-radius: 8px;
+      margin-top: 10px;
+      display: none;
+    }
+    
+    .download-btn {
+      display: none;
+      margin-top: 15px;
+      text-align: center;
+      text-decoration: none;
+      background: #2e7d32;
+      color: white;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📍 Windy URL → WPT 변환기 </h1>
+  
+  <div class="hint">
+    • Windy의 <b>Route Planner URL</b> 을 붙여넣으세요.<br/>
+    • 파일명은 기본적으로 <b>현재 날짜_시간_</b> 형식으로 지정됩니다.<br/>
+    • 제작 : 닐리리(홍상진) of 열풍패러<br/>
+    • 채널 : <a href="https://www.youtube.com/@HotwindPara" target="_blank">https://www.youtube.com/@HotwindPara</a><br/>
+  </div>
+
+  <label for="urlInput">Windy URL 또는 데이터 입력</label>
+  <textarea id="urlInput" placeholder="https://www.windy.com/route-planner/ifr/35.6735,128.4113;..."></textarea>
+
+  <label for="fileTitle">저장할 파일명</label>
+  <input id="fileTitle" type="text" placeholder="예: 2023102414_" />
+
+  <div class="button-group">
+    <button id="convertBtn">WPT 파일 생성하기</button>
+  </div>
+
+  <div class="out">
+    <div id="status">대기 중...</div>
+    <div id="preview"></div>
+    <a id="downloadLink" class="download-btn" download>파일 다운로드 (.wpt)</a>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let lastObjectUrl = null;
+
+// 페이지 로드 시 파일명 기본값 세팅 (yyyyMMddHH_)
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  
+  const datePrefix = `${yyyy}${mm}${dd}${hh}_`;
+  $("fileTitle").value = datePrefix; 
+});
+
+$("convertBtn").addEventListener("click", () => {
+  try {
+    resetUI();
+    const input = $("urlInput").value.trim();
+    const title = ($("fileTitle").value.trim() || "target").replace(/[\\/:*?"<>|]+/g, "_");
+
+    if (!input) throw new Error("URL 혹은 데이터를 입력해주세요.");
+
+    let waypoints = [];
+
+    // 1. Windy Route Planner 패턴 확인 (ifr 경로 포함 대응)
+    const routeMatch = input.match(/\/route-planner\/(?:ifr\/)?([\d\.,;-]+)/);
+    
+    if (routeMatch && routeMatch[1]) {
+      const coordString = routeMatch[1].split('?')[0]; 
+      const pairs = coordString.split(';').filter(p => p.trim() !== "");
+      
+      waypoints = pairs.map((pair, idx) => {
+        const parts = pair.split(',');
+        const lat = parseFloat(parts[0]);
+        const lon = parseFloat(parts[1]);
+        return { name: `WP${idx + 1}`, lat, lon, desc: "Windy Route" };
+      }).filter(p => !isNaN(p.lat) && !isNaN(p.lon));
+    }
+
+    // 2. Windy 패턴에서 못 찾았다면 기존 value 파라미터 시도
+    if (waypoints.length === 0) {
+      const valueRaw = extractValueParam(input);
+      if (valueRaw) {
+        const gpxXml = decodeValueToGpxXml(valueRaw);
+        waypoints = parseGpxWaypoints(gpxXml);
+      }
+    }
+
+    if (waypoints.length === 0) {
+      throw new Error("URL 구조에서 좌표 데이터를 찾을 수 없습니다.");
+    }
+
+    const wptContent = generateOziWpt(waypoints);
+    
+    $("status").textContent = `성공! 좌표 ${waypoints.length}개를 찾았습니다.`;
+    $("status").className = "ok";
+    $("preview").textContent = wptContent;
+    $("preview").style.display = "block";
+    
+    const blob = new Blob([wptContent], { type: "text/plain;charset=utf-8" });
+    const objUrl = URL.createObjectURL(blob);
+    lastObjectUrl = objUrl;
+    
+    const dLink = $("downloadLink");
+    dLink.href = objUrl;
+    dLink.download = `${title}.wpt`;
+    dLink.style.display = "block";
+    dLink.textContent = `${title}.wpt 다운로드`;
+
+  } catch (e) {
+    $("status").textContent = "오류: " + e.message;
+    $("status").className = "error";
+  }
+});
+
+function resetUI() {
+  $("status").textContent = "변환 중...";
+  $("status").className = "";
+  $("preview").style.display = "none";
+  $("downloadLink").style.display = "none";
+  if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl);
+}
+
+function extractValueParam(urlText) {
+  try {
+    const u = new URL(urlText);
+    return u.searchParams.get("value");
+  } catch (_) {
+    const idx = urlText.indexOf("value=");
+    if (idx === -1) return null;
+    const after = urlText.slice(idx + 6);
+    const amp = after.indexOf("&");
+    return amp === -1 ? after : after.slice(0, amp);
+  }
+}
+
+function decodeValueToGpxXml(raw) {
+  const decoded = decodeURIComponent(raw.replace(/\+/g, "%20"));
+  if (decoded.includes("<gpx")) return decoded;
+  
+  try {
+    const b64 = decoded.replace(/-/g, "+").replace(/_/g, "/");
+    return atob(b64);
+  } catch { return decoded; }
+}
+
+function parseGpxWaypoints(xml) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, "application/xml");
+  const nodes = Array.from(doc.querySelectorAll("wpt, rtept, trkpt"));
+  return nodes.map((n, i) => ({
+    name: n.querySelector("name")?.textContent || `PT${i+1}`,
+    lat: parseFloat(n.getAttribute("lat")),
+    lon: parseFloat(n.getAttribute("lon")),
+    desc: n.querySelector("desc")?.textContent || ""
+  })).filter(p => !isNaN(p.lat) && !isNaN(p.lon));
+}
+
+function generateOziWpt(pts) {
+  let lines = [
+    "OziExplorer Waypoint File Version 1.1",
+    "WGS 84",
+    "Reserved 2",
+    "Reserved 3"
+  ];
+
+  pts.forEach((p, i) => {
+    const row = [
+      i + 1,
+      p.name.replace(/,/g, ""),
+      p.lat.toFixed(6),
+      p.lon.toFixed(6),
+      0, 1, 0, 0, 0, 0,
+      (p.desc || "Windy Point").replace(/,/g, " "),
+      0, 0, 0, 0, 0, 0, 0, 0, 0
+    ];
+    lines.push(row.join(","));
+  });
+
+  return lines.join("\r\n") + "\r\n";
+}
+</script>
+
+</body>
+</html>
