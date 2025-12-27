@@ -26,7 +26,7 @@
       padding: 30px;
       border-radius: 20px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-      margin-bottom: 60px; /* 카운터 공간 확보 */
+      margin-bottom: 60px;
     }
     h1 { font-size: 1.5rem; margin-bottom: 20px; color: #1a1a1a; display: flex; align-items: center; gap: 10px; }
     label { display:block; font-weight: 600; margin: 20px 0 8px; font-size: 0.9rem; }
@@ -127,25 +127,52 @@
       align-items: center;
       gap: 8px;
     }
-    .counter-label {
-      opacity: 0.8;
-      font-size: 0.7rem;
-    }
     .counter-value {
       color: #00ffcc;
       font-weight: bold;
       letter-spacing: 1px;
     }
+
+    /* 이름 입력 모달 스타일 */
+    #nameModal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      backdrop-filter: blur(3px);
+    }
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .modal-content h2 { font-size: 1.2rem; margin-top: 0; margin-bottom: 15px; }
+    .modal-content input { margin-bottom: 20px; border: 2px solid #ddd; }
   </style>
 </head>
 <body>
+
+<!-- 이름 입력 모달 -->
+<div id="nameModal">
+  <div class="modal-content">
+    <h2>팀명을 입력하세요</h2>
+    <input type="text" id="userNameInput" placeholder="예: 열풍패러" autofocus />
+    <button id="nameConfirmBtn">확인</button>
+  </div>
+</div>
 
 <div class="container">
   <h1>📍 Windy URL → WPT 변환기 </h1>
   
   <div class="hint">
     • Windy의 <b>Route Planner URL</b> 을 붙여넣으세요.<br/>
-    • 파일명은 기본적으로 <b>현재 날짜_시간_</b> 형식으로 지정됩니다.<br/>
+    • 파일명은 기본적으로 <b>사용자이름_날짜_</b> 형식으로 지정됩니다.<br/>
     • 제작 : 닐리리(홍상진) of 열풍패러<br/>
     • 채널 : <a href="https://www.youtube.com/@HotwindPara" target="_blank">https://www.youtube.com/@HotwindPara</a><br/>
   </div>
@@ -154,7 +181,7 @@
   <textarea id="urlInput" placeholder="https://www.windy.com/route-planner/ifr/35.6735,128.4113;..."></textarea>
 
   <label for="fileTitle">저장할 파일명</label>
-  <input id="fileTitle" type="text" placeholder="예: 2023102414_" />
+  <input id="fileTitle" type="text" placeholder="사용자이름_날짜_" />
 
   <div class="button-group">
     <button id="convertBtn">WPT 파일 생성하기</button>
@@ -167,9 +194,7 @@
   </div>
 </div>
 
-<!-- 방문자 카운터 UI -->
 <div class="visitor-counter">
-  <!-- span class="counter-label">VISITORS</span -->
   <span id="visitorCount" class="counter-value">000,000</span>
 </div>
 
@@ -189,25 +214,42 @@ function updateVisitorCount() {
   }
   
   localStorage.setItem(STORAGE_KEY, count);
-  
-  // 쉼표 포함하여 출력 (예: 1,234)
   $('visitorCount').textContent = count.toLocaleString().padStart(6, '0');
 }
 
-// 페이지 로드 시 초기화
-window.addEventListener('DOMContentLoaded', () => {
-  // 1. 파일명 기본값 세팅
+// 파일명 자동 생성 함수
+function generateFileName(userName = "열풍") {
   const now = new Date();
-  const yyyy = now.getFullYear();
+  const yy = String(now.getFullYear()).slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
   const hh = String(now.getHours()).padStart(2, '0');
   
-  const datePrefix = `${yyyy}${mm}${dd}${hh}_`;
-  $("fileTitle").value = datePrefix; 
+  // 이름이 비어있으면 "열풍" 사용
+  const prefix = (userName.trim() === "") ? "열풍" : userName.trim();
+  const dateStr = `${yy}${mm}${dd}${hh}_`;
+  return `${prefix}${dateStr}`;
+}
 
-  // 2. 방문자 카운터 업데이트
+// 페이지 로드 시 초기화
+window.addEventListener('DOMContentLoaded', () => {
   updateVisitorCount();
+  
+  // 초기 파일명 세팅 (기본값 "열풍" 적용)
+  $("fileTitle").value = generateFileName();
+
+  // 모달 버튼 이벤트
+  $("nameConfirmBtn").addEventListener("click", () => {
+    const name = $("userNameInput").value.trim();
+    // 입력값이 없으면 기본적으로 generateFileName 내에서 "열풍" 처리됨
+    $("fileTitle").value = generateFileName(name || "열풍");
+    $("nameModal").style.display = "none";
+  });
+
+  // 엔터 키 대응
+  $("userNameInput").addEventListener("keypress", (e) => {
+    if (e.key === 'Enter') $("nameConfirmBtn").click();
+  });
 });
 
 $("convertBtn").addEventListener("click", () => {
@@ -219,8 +261,6 @@ $("convertBtn").addEventListener("click", () => {
     if (!input) throw new Error("URL 혹은 데이터를 입력해주세요.");
 
     let waypoints = [];
-
-    // 1. Windy Route Planner 패턴 확인 (ifr 경로 포함 대응)
     const routeMatch = input.match(/\/route-planner\/(?:ifr\/)?([\d\.,;-]+)/);
     
     if (routeMatch && routeMatch[1]) {
@@ -235,7 +275,6 @@ $("convertBtn").addEventListener("click", () => {
       }).filter(p => !isNaN(p.lat) && !isNaN(p.lon));
     }
 
-    // 2. Windy 패턴에서 못 찾았다면 기존 value 파라미터 시도
     if (waypoints.length === 0) {
       const valueRaw = extractValueParam(input);
       if (valueRaw) {
@@ -295,7 +334,6 @@ function extractValueParam(urlText) {
 function decodeValueToGpxXml(raw) {
   const decoded = decodeURIComponent(raw.replace(/\+/g, "%20"));
   if (decoded.includes("<gpx")) return decoded;
-  
   try {
     const b64 = decoded.replace(/-/g, "+").replace(/_/g, "/");
     return atob(b64);
@@ -338,6 +376,5 @@ function generateOziWpt(pts) {
   return lines.join("\r\n") + "\r\n";
 }
 </script>
-
 </body>
 </html>
