@@ -16,6 +16,8 @@
       padding: 20px; 
       background-color: var(--bg-color);
       color: #333;
+      min-height: 100vh;
+      position: relative;
     }
     .container { 
       max-width: 800px; 
@@ -24,6 +26,7 @@
       padding: 30px;
       border-radius: 20px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      margin-bottom: 60px; /* 카운터 공간 확보 */
     }
     h1 { font-size: 1.5rem; margin-bottom: 20px; color: #1a1a1a; display: flex; align-items: center; gap: 10px; }
     label { display:block; font-weight: 600; margin: 20px 0 8px; font-size: 0.9rem; }
@@ -105,6 +108,34 @@
       border-radius: 10px;
       font-weight: bold;
     }
+
+    /* 방문자 카운터 스타일 */
+    .visitor-counter {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 8px 15px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      backdrop-filter: blur(5px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .counter-label {
+      opacity: 0.8;
+      font-size: 0.7rem;
+    }
+    .counter-value {
+      color: #00ffcc;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 <body>
@@ -136,12 +167,36 @@
   </div>
 </div>
 
+<!-- 방문자 카운터 UI -->
+<div class="visitor-counter">
+  <!-- span class="counter-label">VISITORS</span -->
+  <span id="visitorCount" class="counter-value">000,000</span>
+</div>
+
 <script>
 const $ = (id) => document.getElementById(id);
 let lastObjectUrl = null;
 
-// 페이지 로드 시 파일명 기본값 세팅 (yyyyMMddHH_)
+// 방문자 카운터 로직
+function updateVisitorCount() {
+  const STORAGE_KEY = 'windy_converter_visitor_count';
+  let count = localStorage.getItem(STORAGE_KEY);
+  
+  if (count === null) {
+    count = 1;
+  } else {
+    count = parseInt(count) + 1;
+  }
+  
+  localStorage.setItem(STORAGE_KEY, count);
+  
+  // 쉼표 포함하여 출력 (예: 1,234)
+  $('visitorCount').textContent = count.toLocaleString().padStart(6, '0');
+}
+
+// 페이지 로드 시 초기화
 window.addEventListener('DOMContentLoaded', () => {
+  // 1. 파일명 기본값 세팅
   const now = new Date();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -150,6 +205,9 @@ window.addEventListener('DOMContentLoaded', () => {
   
   const datePrefix = `${yyyy}${mm}${dd}${hh}_`;
   $("fileTitle").value = datePrefix; 
+
+  // 2. 방문자 카운터 업데이트
+  updateVisitorCount();
 });
 
 $("convertBtn").addEventListener("click", () => {
@@ -282,5 +340,4 @@ function generateOziWpt(pts) {
 </script>
 
 </body>
-
 </html>
