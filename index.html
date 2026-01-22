@@ -262,6 +262,8 @@ $("convertBtn").addEventListener("click", () => {
 
     let waypoints = [];
     const routeMatch = input.match(/\/route-planner\/(?:ifr\/)?([\d\.,;-]+)/);
+    // 변경: route-planner 이후의 "마지막 /" 다음을 캡처
+    const routeMatch = input.match(/\/route-planner\/.*\/([\d\.,;-]+)(?:\?|$)/);
     
     if (routeMatch && routeMatch[1]) {
       const coordString = routeMatch[1].split('?')[0]; 
@@ -378,3 +380,4 @@ function generateOziWpt(pts) {
 </script>
 </body>
 </html>
+
