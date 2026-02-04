@@ -132,47 +132,16 @@
       font-weight: bold;
       letter-spacing: 1px;
     }
-
-    /* 이름 입력 모달 스타일 */
-    #nameModal {
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      backdrop-filter: blur(3px);
-    }
-    .modal-content {
-      background: white;
-      padding: 30px;
-      border-radius: 20px;
-      width: 90%;
-      max-width: 400px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-    }
-    .modal-content h2 { font-size: 1.2rem; margin-top: 0; margin-bottom: 15px; }
-    .modal-content input { margin-bottom: 20px; border: 2px solid #ddd; }
   </style>
 </head>
 <body>
-
-<!-- 이름 입력 모달 -->
-<div id="nameModal">
-  <div class="modal-content">
-    <h2>팀명을 입력하세요</h2>
-    <input type="text" id="userNameInput" placeholder="예: 열풍패러" autofocus />
-    <button id="nameConfirmBtn">확인</button>
-  </div>
-</div>
 
 <div class="container">
   <h1>📍 Windy URL → WPT 변환기 </h1>
   
   <div class="hint">
     • Windy의 <b>Route Planner URL</b> 을 붙여넣으세요.<br/>
-    • 파일명은 기본적으로 <b>사용자이름_날짜_</b> 형식으로 지정됩니다.<br/>
+    • 파일명은 기본적으로 <b>열풍_날짜_</b> 형식으로 지정됩니다.<br/>
     • 제작 : 닐리리(홍상진) of 열풍패러<br/>
     • 채널 : <a href="https://www.youtube.com/@HotwindPara" target="_blank">https://www.youtube.com/@HotwindPara</a><br/>
   </div>
@@ -181,7 +150,7 @@
   <textarea id="urlInput" placeholder="https://www.windy.com/route-planner/ifr/35.6735,128.4113;..."></textarea>
 
   <label for="fileTitle">저장할 파일명</label>
-  <input id="fileTitle" type="text" placeholder="사용자이름_날짜_" />
+  <input id="fileTitle" type="text" placeholder="열풍_날짜_" />
 
   <div class="button-group">
     <button id="convertBtn">WPT 파일 생성하기</button>
@@ -225,7 +194,6 @@ function generateFileName(userName = "열풍") {
   const dd = String(now.getDate()).padStart(2, '0');
   const hh = String(now.getHours()).padStart(2, '0');
   
-  // 이름이 비어있으면 "열풍" 사용
   const prefix = (userName.trim() === "") ? "열풍" : userName.trim();
   const dateStr = `${yy}${mm}${dd}${hh}_`;
   return `${prefix}${dateStr}`;
@@ -237,19 +205,6 @@ window.addEventListener('DOMContentLoaded', () => {
   
   // 초기 파일명 세팅 (기본값 "열풍" 적용)
   $("fileTitle").value = generateFileName();
-
-  // 모달 버튼 이벤트
-  $("nameConfirmBtn").addEventListener("click", () => {
-    const name = $("userNameInput").value.trim();
-    // 입력값이 없으면 기본적으로 generateFileName 내에서 "열풍" 처리됨
-    $("fileTitle").value = generateFileName(name || "열풍");
-    $("nameModal").style.display = "none";
-  });
-
-  // 엔터 키 대응
-  $("userNameInput").addEventListener("keypress", (e) => {
-    if (e.key === 'Enter') $("nameConfirmBtn").click();
-  });
 });
 
 $("convertBtn").addEventListener("click", () => {
@@ -261,9 +216,7 @@ $("convertBtn").addEventListener("click", () => {
     if (!input) throw new Error("URL 혹은 데이터를 입력해주세요.");
 
     let waypoints = [];
-    // const routeMatch = input.match(/\/route-planner\/(?:ifr\/)?([\d\.,;-]+)/);
-    // 변경: route-planner 이후의 "마지막 /" 다음을 캡처
-    const routeMatch = input.match(/\/route-planner\/.*\/([\d\.,;-]+)(?:\?|$)/);
+    const routeMatch = input.match(/\/route-planner\/(?:ifr\/)?([\d\.,;-]+)/);
     
     if (routeMatch && routeMatch[1]) {
       const coordString = routeMatch[1].split('?')[0]; 
@@ -380,5 +333,3 @@ function generateOziWpt(pts) {
 </script>
 </body>
 </html>
-
-
